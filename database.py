@@ -260,4 +260,59 @@ class Database:
             return False
         finally:
             conn.close()
-            
+
+    def search_items(self, query):
+        """Search items by title."""
+        conn = self.get_connection()
+        cursor = conn.cursor(dictionary=True)
+        cursor.execute('SELECT * FROM items WHERE title LIKE %s ORDER BY id', (f'%{query}%',))
+        items = cursor.fetchall()
+        
+        result = []
+        for item in items:
+            cursor.execute('SELECT genre FROM genres WHERE item_id = %s', (item['id'],))
+            genres = [g['genre'] for g in cursor.fetchall()]
+            result.append({
+                'id': item['id'],
+                'title': item['title'],
+                'type': item['item_type'],
+                'author': item['author'],
+                'genres': genres,
+                'description': item['description']
+            })
+        
+        conn.close()
+        return result
+
+    def search_by_genre_or_author(self, keywords):
+        """Search items by genre or author."""
+        conn = self.get_connection()
+        cursor = conn.cursor(dictionary=True)
+        
+        placeholders = ','.join(['%s' for _ in keywords])
+        query = f'''
+            SELECT DISTINCT i.* FROM items i
+            LEFT JOIN genres g ON i.id = g.item_id
+            WHERE i.author IN ({placeholders}) OR g.genre IN ({placeholders})
+            ORDER BY i.id
+        '''
+        cursor.execute(query, keywords + keywords)
+        
+        items = cursor.fetchall()
+        
+        result = []
+        for item in items:
+            cursor.execute('SELECT genre FROM genres WHERE item_id = %s', (item['id'],))
+            genres = [g['genre'] for g in cursor.fetchall()]
+            result.append({
+                'id': item['id'],
+                'title': item['title'],
+                'type': item['item_type'],
+                'author': item['author'],
+                'genres': genres,
+                'description': item['description']
+            })
+        
+        conn.close()
+        return result
+
