@@ -84,4 +84,27 @@ class Database:
             print(f"❌ Error initializing database: {e}")
             sys.exit(1)
 
-   
+    @staticmethod
+    def hash_password(password):
+        """Hash password using SHA256."""
+        return hashlib.sha256(password.encode()).hexdigest()
+
+    def register_user(self, username, password):
+        """Register new user account."""
+        conn = self.get_connection()
+        cursor = conn.cursor()
+        try:
+            hashed_password = self.hash_password(password)
+            cursor.execute(
+                'INSERT INTO users (username, password, role) VALUES (%s, %s, %s)',
+                (username, hashed_password, 'user')
+            )
+            conn.commit()
+            return True
+        except Error as e:
+            if "Duplicate entry" in str(e):
+                return False
+            print(f"❌ Error: {e}")
+            return False
+        finally:
+            conn.close()
